@@ -35,7 +35,7 @@ CONFIG: Dict[str, Any] = {
         ".",
         "&",
     ],
-    "yt-url": "https://ari-web.xyz/watch?v=%s",
+    "yt-url": "https://ari-web.xyz/yt/watch?v=%s",
 }
 
 if os.path.exists(CONFIG_FILE):

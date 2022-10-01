@@ -43,7 +43,7 @@ are static
     "styles": "~/.config/mpvp.css",
     "script": "~/.config/mpvp.js",
     "song-name-delims": ["\u2013", "-", ",", "feat.", ".", "&"],
-    "yt-url": "https://ari-web.xyz/watch?v=%s"
+    "yt-url": "https://ari-web.xyz/yt/watch?v=%s"
 }
 ```
 
