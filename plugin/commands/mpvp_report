@@ -1,0 +1,366 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Mpvp-report -- Collect MPV data"""
+
+import os
+import sys
+from html import escape as escape_html
+from typing import Any, Callable, Dict, List, Tuple, Union
+from warnings import filterwarnings as filter_warnings
+
+import ujson  # type: ignore
+from css_html_js_minify import css_minify, html_minify  # type: ignore
+
+
+def eprint(text: str) -> None:
+    print(text, file=sys.stderr)
+
+
+def parse_song(song: str) -> Tuple[str, str]:
+    basename: str = os.path.splitext(os.path.basename(song))[0]
+    return basename[:-14], basename[-12:-1]
+
+
+HOME: str = os.path.expanduser("~")
+CONFIG_FILE: str = os.path.join(HOME, os.path.join(".config", "mpvp.json"))
+CONFIG: Dict[str, Any] = {
+    "song-mapping": {},
+    "styles": "~/.config/mpvp.css",
+    "script": "~/.config/mpvp.js",
+    "song-name-delims": [
+        "–",
+        "-",
+        ",",
+        "feat.",
+        ".",
+        "&",
+    ],
+    "yt-url": "https://ari-web.xyz/watch?v=%s",
+}
+
+if os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE, "r") as config:
+        CONFIG.update(ujson.load(config))
+else:
+    eprint(f"Warning: Config {CONFIG_FILE!r} does not exist, making one")
+
+    with open(CONFIG_FILE, "w") as config:
+        ujson.dump(CONFIG, config, indent=4)
+
+
+class UnknownMusicArtistError(BaseException):
+    """Raised when there is an unknown music artist"""
+
+
+def fsplit_song(song_name: str) -> str:
+    for delim in CONFIG["song-name-delims"]:
+        song_name = song_name.split(delim, maxsplit=1)[0]
+
+    return song_name.strip()
+
+
+def get_artist_from_song(song: str) -> str:
+    song = song.lower()
+
+    if song not in CONFIG["song-mapping"] and any(
+        delim in song for delim in CONFIG["song-name-delims"]
+    ):
+        return fsplit_song(song)
+    else:
+        if song in CONFIG["song-mapping"]:
+            return CONFIG["song-mapping"][song].lower()
+
+        raise UnknownMusicArtistError(f"No handled artist for song: {song!r}")
+
+
+def sort_dict(d: Dict, key: Callable[..., int]) -> Dict:
+    return {k: v for k, v in sorted(d.items(), key=key, reverse=True)}
+
+
+def get_artists_from_played(
+    played: Dict[str, List[Union[int, str]]]
+) -> Dict[str, List[int]]:
+    artists: Dict[str, List[int]] = {}
+
+    for song in played:
+        artist = get_artist_from_song(song)
+
+        if artist not in artists:
+            artists[artist] = [0, 0]
+
+        artists[artist][0] += 1
+        artists[artist][1] += played[song][0]  # type: ignore
+
+    return sort_dict(artists, lambda item: sum(item[1]))
+
+
+def get_played(data: List[Tuple[str, str]]) -> Dict[str, List[Union[int, str]]]:
+    played: Dict[str, List[Union[int, str]]] = {}
+
+    for song, yt_id in data:
+        if song not in played:
+            played[song] = [0, yt_id]
+
+        played[song][0] += 1  # type: ignore
+
+    return sort_dict(played, lambda item: item[1][0])
+
+
+def parse_data(data: List[Tuple[str, str]]) -> Dict[str, Any]:
+    print("Parsing the loaded data into usable JSON data")
+
+    played: Dict[str, List[Union[int, str]]] = get_played(data)
+
+    return {
+        "total": len(data),
+        "played": played,
+        "artists": get_artists_from_played(played),
+    }
+
+
+def human(word: str, count: int) -> str:
+    return f"{word}s" if count > 1 else word
+
+
+def get_styles() -> str:
+    if not os.path.exists(CONFIG["styles"]):
+        return ""
+
+    print("Minifying and injecting CSS")
+
+    with open(CONFIG["styles"], "r") as styles:
+        return f"<style>{css_minify(styles.read())}</style>"
+
+
+def get_script() -> str:
+    if not os.path.exists(CONFIG["script"]):
+        return ""
+
+    print("Injecting javascript")
+    # JS minification is broken with js_css_html_minify
+
+    with open(CONFIG["styles"], "r") as js:
+        return f"<script defer>{js.read()}</script>"
+
+
+def get_yt(yt_id: str) -> str:
+    return CONFIG["yt-url"] % yt_id
+
+
+def generate_html_report(data: Dict[str, Any]) -> str:
+    songs = artists = ""
+    top_song = top_artist = None
+
+    print("Generating song list")
+
+    for played_song_name, played_song_meta in data["played"].items():
+        if top_song is None:
+            top_song = (played_song_name, played_song_meta)
+
+        songs += f"""<li>
+    <a href="{get_yt(played_song_meta[1])}">
+        {escape_html(played_song_name)}
+    </a>
+    (played <code>{played_song_meta[0]}</code> {human("time", played_song_meta[0])})
+</li>"""
+
+    print("Generating artist list")
+
+    for artist, artist_stats in data["artists"].items():
+        if top_artist is None:
+            top_artist = (artist, artist_stats)
+
+        repeats: str = (
+            f" (<code>{artist_stats[1]}</code> {human('repeat', artist_stats[1])})"
+        )
+        artists += f"""<li>
+    {escape_html(artist)}
+    (<code>{artist_stats[0]}</code> {human("song", artist_stats[0])} played{repeats if artist_stats[0] > 1 else ''})
+</li>"""
+
+    print("Verifying top data")
+
+    if top_song is None or top_artist is None:
+        eprint(
+            f"""
+Invalid top song or artist
+
+Top song:   {top_song!r}
+Top artist: {top_artist!r}
+"""
+        )
+        sys.exit(1)
+
+    print("Minifying and generating HTML")
+
+    return html_minify(
+        f"""<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MPV song report</title>
+
+        <meta name="description" content="HTML song report" />
+        <meta
+            name="keywords"
+            content="sort, report, music, music report, listen, song, mpv, mpv.io, player"
+        />
+        <meta
+            name="robots"
+            content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+        />
+        <meta property="og:type" content="article" />
+        <meta
+            name="robots"
+            content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
+        />
+        <meta name="generator" content="Static mpvp_report generator https://ari-web.xyz/gh/mpvp-report" />
+
+        {get_styles()}
+    </head>
+
+    <body>
+        <article>
+            <header>
+                <h1>MPV song listening report</h1>
+                <hr />
+            </header>
+
+            <section id="stats">
+                <h2>Stats</h2>
+
+                <ul>
+                    <li>
+                        Songs played: <code>{data["total"]}</code>
+                        <ul><li>Unique songs: <code>{len(data["played"])}</code></li></ul>
+                    </li>
+                    <li>Artists: <code>{len(data["artists"])}</code></li>
+                </ul>
+            </section>
+
+            <section id="top">
+                <h2>Top stats</h2>
+
+                <ul>
+                    <li>
+                        Top song:
+                        <code>{top_song[0]}</code>
+                        (<a href="{get_yt(top_song[1][1])}">URL here</a>)
+                        by
+                        <code>{get_artist_from_song(top_song[0])}</code>
+                        with
+                        <code>{top_song[1][0]}</code>
+                        {human("play", top_song[1][0])}
+                    </li>
+
+                    <li>
+                        Top artist:
+                        <code>{top_artist[0]}</code>
+                        with
+                        <code>{top_artist[1][0]}</code>
+                        {human("song", top_artist[1][0])}
+                        played
+                        {human(f"and <code>{top_artist[1][1]}</code> repeat", top_artist[1][0])}
+                    </li>
+                </ul>
+            </section>
+
+            <section id="songs">
+                <h2>Songs</h2>
+
+                <details>
+                    <summary>Expand for the list of songs</summary>
+                    <ol>{songs}</ol>
+                </details>
+            </section>
+
+            <section id="artists">
+                <h2>Artists</h2>
+
+                <details>
+                    <summary>Expand for the list of artists</summary>
+                    <ol>{artists}</ol>
+                </details>
+            </section>
+
+            <section id="json">
+                <h2>Raw JSON data</h2>
+
+                <details>
+                    <summary>Expand for the raw data</summary>
+                    <pre><code>{ujson.dumps(data, indent=4)}</code></pre>
+                </details>
+            </section>
+        </article>
+
+        {get_script()}
+    </body>
+</html>"""
+    )
+
+
+def main() -> int:
+    """Entry/main function"""
+
+    if len(sys.argv) < 2:
+        eprint(
+            f"""
+Song format for full functionality: Artist name - Song name [YouTube ID]
+
+>> Please supply the output html path, for example:
+   $ {sys.argv[0]} index.html
+"""
+        )
+        return 1
+
+    print("Expanding paths in config")
+
+    for key in (
+        "styles",
+        "script",
+    ):
+        CONFIG[key] = os.path.expanduser(CONFIG[key])
+
+    mpvp_file: str = os.environ.get("MPVP_FILE", f"{os.path.join(HOME, '.mpvp')}")
+    data: List[Tuple[str, str]] = []
+
+    print(
+        f"""
+MPVP_FILE: {mpvp_file!r}
+OUTPUT:    {sys.argv[1]!r}
+"""
+    )
+
+    print("Collecting and parsing MPV data")
+
+    with open(mpvp_file, "r") as mpv_data:
+        for line_idx, line in enumerate(mpv_data):
+            if '"data"' not in line:
+                eprint(f"Invalid MPV data at line {line_idx}: {line}")
+                continue
+
+            data.append(parse_song(ujson.loads(line)["data"]))
+
+    print("Validating data")
+
+    if not data:
+        eprint("Not enough data to report")
+        return 1
+
+    print(f"Generating {sys.argv[1]!r}")
+
+    with open(sys.argv[1], "w") as html:
+        html.write(generate_html_report(parse_data(data)))
+
+    print(f"Generated report: {sys.argv[1]!r}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    assert main.__annotations__.get("return") is int, "main() should return an integer"
+
+    filter_warnings("error", category=Warning)
+    sys.exit(main())

@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+set -e
+
+main() {
+    mpvp_collect &
+    mpv --input-ipc-server="${MPV_IPC:-'/tmp/mpvipc'}" "$@"
+}
+
+main "$@"

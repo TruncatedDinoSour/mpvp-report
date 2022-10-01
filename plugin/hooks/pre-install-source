@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+log 'Checking dependencies'
+use env python3 sh mpv pip
+
+log 'Installing python modules'
+python3 -m pip install --user -r requirements.txt || exit 1
