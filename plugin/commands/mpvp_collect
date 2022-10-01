@@ -14,6 +14,7 @@ main() {
     sleep 2 # wait for MPV
 
     while true; do
+        pgrep mpv || break # Mpv has not been started/quit
         sleep 5 # Wait for another song that you're starting to listen to
 
         c_song="$(mpv_song)"
