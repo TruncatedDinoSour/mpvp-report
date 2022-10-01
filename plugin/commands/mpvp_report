@@ -366,7 +366,7 @@ OUTPUT:    {sys.argv[1]!r}
     with open(mpvp_file, "r") as mpv_data:
         for line_idx, line in enumerate(mpv_data):
             if '"data"' not in line:
-                eprint(f"Invalid MPV data at line {line_idx}: {line}")
+                eprint(f"Warning: Invalid MPV data at line {line_idx}: {line}")
                 continue
 
             data.append(parse_song(ujson.loads(line)["data"]))
