@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+log 'Running the pre-install hook'
+baz_run_hook 'pre-install'

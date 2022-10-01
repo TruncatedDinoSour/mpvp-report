@@ -3,7 +3,7 @@
 [ "$DEBUG" ] && set -x
 
 MPVP_FILE="${MPVP_FILE:-"$HOME/.mpvp"}"
-MPV_IPC="${MPV_IPC:-'/tmp/mpvipc'}"
+MPV_IPC="${MPV_IPC:-/tmp/mpvipc}"
 
 mpv_song() { echo '{ "command": ["get_property", "path"] }' | socat - "$MPV_IPC"; }
 
