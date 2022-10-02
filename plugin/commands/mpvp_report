@@ -4,6 +4,7 @@
 
 import os
 import sys
+from getpass import getuser as get_username
 from html import escape as escape_html
 from typing import Any, Callable, Dict, List, Tuple, Union
 from warnings import filterwarnings as filter_warnings
@@ -99,7 +100,7 @@ def get_played(data: List[Tuple[str, str]]) -> Dict[str, List[Union[int, str]]]:
 
     for song, yt_id in data:
         if song not in played:
-            played[song] = [0, yt_id]
+            played[song] = [0, yt_id, get_artist_from_song(song)]
 
         played[song][0] += 1  # type: ignore
 
@@ -185,11 +186,24 @@ def generate_html_report(data: Dict[str, Any]) -> str:
         if top_song is None:
             top_song = (played_song_name, played_song_meta)
 
+        e_song_name: str = escape_html(played_song_name)
+
+        played_times_html: str = (
+            f"<li>Played times: <code>{played_song_meta[0]}</code></li>"
+            if played_song_meta[0] > 1
+            else ""
+        )
+
         songs += f"""<li>
-    <a href="{get_yt(played_song_meta[1])}">
-        {escape_html(played_song_name)}
-    </a>
-    (played <code>{played_song_meta[0]}</code> {human("time", played_song_meta[0])})
+    <details>
+        <summary>{e_song_name}</summary>
+
+        <ul>
+            <li>URL: <a href="{get_yt(played_song_meta[1])}">{e_song_name}</a></li>
+            <li>Artist: <code>{played_song_meta[2]}</code></li>
+            {played_times_html}
+        </ul>
+    </details>
 </li>"""
 
     print("Generating artist list")
@@ -198,12 +212,18 @@ def generate_html_report(data: Dict[str, Any]) -> str:
         if top_artist is None:
             top_artist = (artist, artist_stats)
 
-        repeats: str = (
-            f" (<code>{artist_stats[1]}</code> {human('repeat', artist_stats[1])})"
+        artists_played_songs_html: str = (
+            f"""Played songs: <code>{artist_stats[0]}</code>
+            <ul><li>{human('Repeat', artist_stats[1])}: <code>{artist_stats[1]}</code></li></ul>"""
+            if artist_stats[0] > 1
+            else "No major stats"
         )
+
         artists += f"""<li>
-    {escape_html(artist)}
-    (<code>{artist_stats[0]}</code> {human("song", artist_stats[0])} played{repeats if artist_stats[0] > 1 else ''})
+    <details>
+        <summary>{escape_html(artist)}</summary>
+        <ul><li>{artists_played_songs_html}</li></ul>
+    </details>
 </li>"""
 
     print("Verifying top data")
@@ -219,6 +239,10 @@ Top artist: {top_artist!r}
         )
         sys.exit(1)
 
+    print("Getting and escaping username")
+
+    user: str = escape_html(get_username())
+
     print("Minifying and generating HTML")
 
     return html_minify(
@@ -228,12 +252,12 @@ Top artist: {top_artist!r}
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>MPV song report</title>
+        <title>MPV song report for {user}</title>
 
-        <meta name="description" content="HTML song report" />
+        <meta name="description" content="HTML song report for {user}" />
         <meta
             name="keywords"
-            content="sort, report, music, music report, listen, song, mpv, mpv.io, player"
+            content="sort, report, music, music report, listen, song, mpv, mpv.io, player, {user}"
         />
         <meta
             name="robots"
@@ -244,7 +268,7 @@ Top artist: {top_artist!r}
             name="robots"
             content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
         />
-        <meta name="generator" content="Static mpvp_report generator https://ari-web.xyz/gh/mpvp-report" />
+        <meta name="generator" content="Static mpvp_report generator: https://ari-web.xyz/gh/mpvp-report" />
 
         {get_styles()}
     </head>
@@ -252,7 +276,7 @@ Top artist: {top_artist!r}
     <body>
         <article>
             <header>
-                <h1>MPV song listening report</h1>
+                <h1>MPV song listening report for {user}</h1>
                 <hr />
             </header>
 
