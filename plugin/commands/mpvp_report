@@ -37,6 +37,7 @@ CONFIG: Dict[str, Any] = {
         "&",
     ],
     "yt-url": "https://ari-web.xyz/yt/watch?v=%s",
+    "raw-json": True,
 }
 
 if os.path.exists(CONFIG_FILE):
@@ -243,6 +244,20 @@ Top artist: {top_artist!r}
 
     user: str = escape_html(get_username())
 
+    raw_json: str = ""
+
+    if CONFIG["raw-json"]:
+        print("generating raw json")
+
+        raw_json = """<section id="json">
+                <h2>Raw JSON data</h2>
+
+                <details>
+                    <summary>Expand for the raw data</summary>
+                    <pre><code>{ujson.dumps(data, indent=4)}</code></pre>
+                </details>
+            </section>"""
+
     print("Minifying and generating HTML")
 
     return html_minify(
@@ -337,14 +352,7 @@ Top artist: {top_artist!r}
                 </details>
             </section>
 
-            <section id="json">
-                <h2>Raw JSON data</h2>
-
-                <details>
-                    <summary>Expand for the raw data</summary>
-                    <pre><code>{ujson.dumps(data, indent=4)}</code></pre>
-                </details>
-            </section>
+            {raw_json}
         </article>
 
         {get_script()}
