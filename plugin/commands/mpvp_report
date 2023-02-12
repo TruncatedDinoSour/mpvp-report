@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Mpvp-report -- Collect MPV data"""
+"""mpvp_report -- report collected MPV data"""
 
 import os
 import sys
@@ -44,14 +44,14 @@ if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as config:
         CONFIG.update(ujson.load(config))
 else:
-    eprint(f"Warning: Config {CONFIG_FILE!r} does not exist, making one")
+    eprint(f"warning : config {CONFIG_FILE!r} does not exist, making one")
 
     with open(CONFIG_FILE, "w") as config:
         ujson.dump(CONFIG, config, indent=4)
 
 
 class UnknownMusicArtistError(BaseException):
-    """Raised when there is an unknown music artist"""
+    """raised when there is an unknown music artist"""
 
 
 def fsplit_song(song_name: str) -> str:
@@ -75,7 +75,7 @@ def get_artist_from_song(song: str) -> str:
         raise UnknownMusicArtistError(f"No handled artist for song: {song!r}")
 
 
-def sort_dict(d: Dict, key: Callable[..., int]) -> Dict:
+def sort_dict(d: Dict[Any, Any], key: Callable[..., int]) -> Dict[Any, Any]:
     return {k: v for k, v in sorted(d.items(), key=key, reverse=True)}
 
 
@@ -109,7 +109,7 @@ def get_played(data: List[Tuple[str, str]]) -> Dict[str, List[Union[int, str]]]:
 
 
 def parse_data(data: List[Tuple[str, str]]) -> Dict[str, Any]:
-    print("Parsing the loaded data into usable JSON data")
+    print("parsing the loaded data into usable JSON data")
 
     played: Dict[str, List[Union[int, str]]] = get_played(data)
 
@@ -128,7 +128,7 @@ def get_styles() -> str:
     if not os.path.exists(CONFIG["styles"]):
         return ""
 
-    print("Minifying and injecting CSS")
+    print("minifying and injecting CSS")
 
     with open(CONFIG["styles"], "r") as styles:
         return f"<style>{css_minify(styles.read())}</style>"
@@ -138,7 +138,7 @@ def get_script() -> str:
     if not os.path.exists(CONFIG["script"]):
         return ""
 
-    print("Injecting javascript")
+    print("injecting javascript")
     # JS minification is broken with js_css_html_minify
 
     with open(CONFIG["styles"], "r") as js:
@@ -181,7 +181,7 @@ def generate_html_report(data: Dict[str, Any]) -> str:
     songs = artists = ""
     top_song = top_artist = None
 
-    print("Generating song list")
+    print("generating song list")
 
     for played_song_name, played_song_meta in data["played"].items():
         if top_song is None:
@@ -190,7 +190,7 @@ def generate_html_report(data: Dict[str, Any]) -> str:
         e_song_name: str = escape_html(played_song_name)
 
         played_times_html: str = (
-            f"<li>Played times: <code>{played_song_meta[0]}</code></li>"
+            f"<li>played times : <code>{played_song_meta[0]}</code></li>"
             if played_song_meta[0] > 1
             else ""
         )
@@ -200,24 +200,24 @@ def generate_html_report(data: Dict[str, Any]) -> str:
         <summary>{e_song_name}</summary>
 
         <ul>
-            <li>URL: <a href="{get_yt(played_song_meta[1])}">{e_song_name}</a></li>
-            <li>Artist: <code>{played_song_meta[2]}</code></li>
+            <li>URL : <a href="{get_yt(played_song_meta[1])}">{e_song_name}</a></li>
+            <li>artist : <code>{played_song_meta[2]}</code></li>
             {played_times_html}
         </ul>
     </details>
 </li>"""
 
-    print("Generating artist list")
+    print("generating artist list")
 
     for artist, artist_stats in data["artists"].items():
         if top_artist is None:
             top_artist = (artist, artist_stats)
 
         artists_played_songs_html: str = (
-            f"""Played songs: <code>{artist_stats[0]}</code>
-            <ul><li>{human('Repeat', artist_stats[1])}: <code>{artist_stats[1]}</code></li></ul>"""
+            f"""played songs : <code>{artist_stats[0]}</code>
+            <ul><li>{human('repeat', artist_stats[1])} : <code>{artist_stats[1]}</code></li></ul>"""
             if artist_stats[0] > 1
-            else "No major stats"
+            else "no major stats"
         )
 
         artists += f"""<li>
@@ -227,20 +227,20 @@ def generate_html_report(data: Dict[str, Any]) -> str:
     </details>
 </li>"""
 
-    print("Verifying top data")
+    print("verifying top data")
 
     if top_song is None or top_artist is None:
         eprint(
             f"""
-Invalid top song or artist
+invalid top song or artist
 
-Top song:   {top_song!r}
-Top artist: {top_artist!r}
+top song :   {top_song!r}
+top artist : {top_artist!r}
 """
         )
         sys.exit(1)
 
-    print("Getting and escaping username")
+    print("getting and escaping username")
 
     user: str = escape_html(get_username())
 
@@ -250,10 +250,10 @@ Top artist: {top_artist!r}
         print("generating raw json")
 
         raw_json = """<section id="json">
-                <h2>Raw JSON data</h2>
+                <h2>raw JSON data</h2>
 
                 <details>
-                    <summary>Expand for the raw data</summary>
+                    <summary>expand for the raw data</summary>
                     <pre><code>{ujson.dumps(data, indent=4)}</code></pre>
                 </details>
             </section>"""
@@ -283,7 +283,7 @@ Top artist: {top_artist!r}
             name="robots"
             content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large"
         />
-        <meta name="generator" content="Static mpvp_report generator: https://ari-web.xyz/gh/mpvp-report" />
+        <meta name="generator" content="static mpvp_report generator : https://ari-web.xyz/gh/mpvp-report" />
 
         {get_styles()}
     </head>
@@ -296,23 +296,23 @@ Top artist: {top_artist!r}
             </header>
 
             <section id="stats">
-                <h2>Stats</h2>
+                <h2>stats</h2>
 
                 <ul>
                     <li>
-                        Songs played: <code>{data["total"]}</code>
-                        <ul><li>Unique songs: <code>{len(data["played"])}</code></li></ul>
+                        songs played : <code>{data["total"]}</code>
+                        <ul><li>unique songs : <code>{len(data["played"])}</code></li></ul>
                     </li>
-                    <li>Artists: <code>{len(data["artists"])}</code></li>
+                    <li>artists : <code>{len(data["artists"])}</code></li>
                 </ul>
             </section>
 
             <section id="top">
-                <h2>Top stats</h2>
+                <h2>top stats</h2>
 
                 <ul>
                     <li>
-                        Top song:
+                        top song :
                         <code>{top_song[0]}</code>
                         (<a href="{get_yt(top_song[1][1])}">URL here</a>)
                         by
@@ -323,31 +323,31 @@ Top artist: {top_artist!r}
                     </li>
 
                     <li>
-                        Top artist:
+                        top artist :
                         <code>{top_artist[0]}</code>
                         with
                         <code>{top_artist[1][0]}</code>
                         {human("song", top_artist[1][0])}
-                        played
-                        {human(f"and <code>{top_artist[1][1]}</code> repeat", top_artist[1][0])}
+                        played and <code>{top_artist[1][1]}</code>
+                        {human(f"repeat", top_artist[1][0])}
                     </li>
                 </ul>
             </section>
 
             <section id="songs">
-                <h2>Songs</h2>
+                <h2>songs</h2>
 
                 <details>
-                    <summary>Expand for the list of songs</summary>
+                    <summary>expand for the list of songs</summary>
                     <ol>{songs}</ol>
                 </details>
             </section>
 
             <section id="artists">
-                <h2>Artists</h2>
+                <h2>artists</h2>
 
                 <details>
-                    <summary>Expand for the list of artists</summary>
+                    <summary>expand for the list of artists</summary>
                     <ol>{artists}</ol>
                 </details>
             </section>
@@ -362,20 +362,20 @@ Top artist: {top_artist!r}
 
 
 def main() -> int:
-    """Entry/main function"""
+    """entry / main function"""
 
     if len(sys.argv) < 2:
         eprint(
             f"""
-Song format for full functionality: Artist name - Song name [YouTube ID]
+song format for full functionality : artist name - song name [youTube ID]
 
->> Please supply the output html path, for example:
+>> please supply the output html path, for example :
    $ {sys.argv[0]} index.html
 """
         )
         return 1
 
-    print("Expanding paths in config")
+    print("expanding paths in config")
 
     for key in (
         "styles",
@@ -393,28 +393,28 @@ OUTPUT:    {sys.argv[1]!r}
 """
     )
 
-    print("Collecting and parsing MPV data")
+    print("collecting and parsing MPV data")
 
     with open(mpvp_file, "r") as mpv_data:
         for line_idx, line in enumerate(mpv_data):
             if '"data"' not in line:
-                eprint(f"Warning: Invalid MPV data at line {line_idx}: {line}")
+                eprint(f"warning : invalid MPV data at line {line_idx}: {line}")
                 continue
 
             data.append(parse_song(ujson.loads(line)["data"]))
 
-    print("Validating data")
+    print("validating data")
 
     if not data:
-        eprint("Not enough data to report")
+        eprint("not enough data to report")
         return 1
 
-    print(f"Generating {sys.argv[1]!r}")
+    print(f"generating {sys.argv[1]!r}")
 
     with open(sys.argv[1], "w") as html:
         html.write(generate_html_report(parse_data(data)))
 
-    print(f"Generated report: {sys.argv[1]!r}")
+    print(f"generated report : {sys.argv[1]!r}")
 
     return 0
 
@@ -423,4 +423,4 @@ if __name__ == "__main__":
     assert main.__annotations__.get("return") is int, "main() should return an integer"
 
     filter_warnings("error", category=Warning)
-    sys.exit(main())
+    raise SystemExit(main())

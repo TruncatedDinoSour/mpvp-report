@@ -14,14 +14,14 @@ main() {
     sleep 2 # wait for MPV
 
     while true; do
-        pgrep mpv >/dev/null || break # Mpv has not been started/quit
-        sleep 5                       # Wait for another song that you're starting to listen to
+        pgrep mpv >/dev/null || break # mpv has not been started/quit
+        sleep 5                       # wait for another song that you're starting to listen to
 
         c_song="$(mpv_song)"
-        [ "$c_song" ] || break # Mpv most likely exited
+        [ "$c_song" ] || break # mpv most likely exited
 
         if [ "$c_song" ] && [ "$c_song" != "$(tail -n 1 "$MPVP_FILE")" ]; then
-            sleep 4 # Verify that you're listening to the song
+            sleep 5 # verify that you're seriously listening to the song
             [ "$(mpv_song)" = "$c_song" ] && echo "$c_song" >>"$MPVP_FILE"
         fi
     done
