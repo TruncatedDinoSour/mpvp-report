@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-log 'Checking dependencies'
+log 'checking dependencies'
 use env python3 sh mpv pip pgrep socat sleep echo
 
-log 'Installing python modules'
+log 'installing python modules'
 python3 -m pip install --user -r requirements.txt || exit 1
