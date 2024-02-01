@@ -4,4 +4,4 @@ baz_log 'checking dependencies'
 baz_use env python3 sh mpv pip pgrep socat sleep echo
 
 baz_log 'installing python modules'
-python3 -m pip install --user -r requirements.txt || exit 1
+python3 -m pip install --user --break-system-packages -r requirements.txt || exit 1
